@@ -1,4 +1,4 @@
 cron:
 - description: Schedule TripIt fetcher
   url: /tripit/schedule
-  schedule: every 12 hours
+  schedule: every 60 minutes
