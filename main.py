@@ -40,33 +40,34 @@ class HomeHandler(webapp2.RequestHandler):
 class AirportListHandler(webapp2.RequestHandler):
 
     def get(self):
+        self.response.headers['Content-Type'] = 'application/csv'
         airports = memcache.get('tripit_airports')
         if airports is None:
             # according to GAE documentation: "by default, items never expire,
             # though items may be evicted due to memory pressure"
             taskqueue.add(url='/tripit/worker')
-
-        colors = ['#AF81C9', '#F89A7E', '#F2CA85', '#54D1F1', '#7C71AD', '#445569']
-
-        self.response.headers['Content-Type'] = 'application/csv'
-        writer = csv.writer(self.response.out)
-        writer.writerow(['name', 'color'])
-        for i, value in enumerate(airports):
-            writer.writerow([value, colors[i % len(colors)]])
+            self.response.write("")
+        else :
+            colors = ['#AF81C9', '#F89A7E', '#F2CA85', '#54D1F1', '#7C71AD', '#445569']
+            writer = csv.writer(self.response.out)
+            writer.writerow(['name', 'color'])
+            for i, value in enumerate(airports):
+                writer.writerow([value, colors[i % len(colors)]])
 
 
 
 class AirportMatrixHandler(webapp2.RequestHandler):
 
     def get(self):
+        self.response.content_type = 'application/json'
         matrix = memcache.get('tripit_matrix')
         if matrix is None:
             # according to GAE documentation: "by default, items never expire,
             # though items may be evicted due to memory pressure"
             taskqueue.add(url='/tripit/worker')
-
-        self.response.content_type = 'application/json'
-        self.response.write(json.encode(matrix))
+            self.response.write("")
+        else:
+            self.response.write(json.encode(matrix))
 
 
 
