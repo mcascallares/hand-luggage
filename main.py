@@ -22,10 +22,20 @@ from collections import defaultdict
 import webapp2
 from webapp2_extras import json
 from google.appengine.api import taskqueue
-from google.appengine.api import memcache
+from google.appengine.ext import ndb
 
 import config
 from tripit_facade import TripItFacade
+
+AIRPORTS_ID = 1
+MATRIX_ID = 2
+
+class BlobModel(ndb.Model):
+    payload = ndb.PickleProperty(compressed=True)
+
+    @classmethod
+    def by_name(cls, name_value):
+        return cls.query(name=name_value)
 
 
 class HomeHandler(webapp2.RequestHandler):
@@ -36,39 +46,24 @@ class HomeHandler(webapp2.RequestHandler):
         self.response.write(template.render(template_values))
 
 
-
 class AirportListHandler(webapp2.RequestHandler):
 
     def get(self):
         self.response.headers['Content-Type'] = 'application/csv'
-        airports = memcache.get('tripit_airports')
-        if airports is None:
-            # according to GAE documentation: "by default, items never expire,
-            # though items may be evicted due to memory pressure"
-            taskqueue.add(url='/tripit/worker')
-            self.response.write("")
-        else :
-            colors = ['#AF81C9', '#F89A7E', '#F2CA85', '#54D1F1', '#7C71AD', '#445569']
-            writer = csv.writer(self.response.out)
-            writer.writerow(['name', 'color'])
-            for i, value in enumerate(airports):
-                writer.writerow([value, colors[i % len(colors)]])
-
+        airports = BlobModel.get_by_id(AIRPORTS_ID)
+        colors = ['#AF81C9', '#F89A7E', '#F2CA85', '#54D1F1', '#7C71AD', '#445569']
+        writer = csv.writer(self.response.out)
+        writer.writerow(['name', 'color'])
+        for i, value in enumerate(airports.payload):
+            writer.writerow([value, colors[i % len(colors)]])
 
 
 class AirportMatrixHandler(webapp2.RequestHandler):
 
     def get(self):
         self.response.content_type = 'application/json'
-        matrix = memcache.get('tripit_matrix')
-        if matrix is None:
-            # according to GAE documentation: "by default, items never expire,
-            # though items may be evicted due to memory pressure"
-            taskqueue.add(url='/tripit/worker')
-            self.response.write("")
-        else:
-            self.response.write(json.encode(matrix))
-
+        matrix = BlobModel.get_by_id(MATRIX_ID)
+        self.response.write(json.encode(matrix.payload))
 
 
 class TripItHandler(webapp2.RequestHandler):
@@ -78,7 +73,6 @@ class TripItHandler(webapp2.RequestHandler):
         taskqueue.add(url='/tripit/worker')
 
     def post(self):
-        logging.info('Starting tripit fetch')
         tripit = TripItFacade(config.TRIPIT_USERNAME, config.TRIPIT_PASSWORD)
         flight_segments = tripit.list_flight_segments()
         logging.info('Flight segments retrieved!')
@@ -92,21 +86,22 @@ class TripItHandler(webapp2.RequestHandler):
             airports.add(destination)
 
         airports = list(airports) # to guarantee order
-        logging.info('We have flight segments for {} different airports'.format(len(airports)))
-        ret = []
+        weights = []
 
         for i in airports:
-            current_line = [0]*len(airports)
+            current_line = [0] * len(airports)
             for j, value in enumerate(airports):
                 current_line[j] = matrix[i, value]
-            ret.append(current_line)
+            weights.append(current_line)
 
-        if len(ret) > 0:
-            memcache.add(key='tripit_matrix', value=ret, time=86400)
-            memcache.add(key='tripit_airports', value=airports, time=86400)
-            logging.info('Updated cache entries with matrix and airport information')
+        if len(weights) > 0:
+            tripit_airport = BlobModel(id=AIRPORTS_ID, payload=airports)
+            tripit_airport.put()
+            tripit_matrix = BlobModel(id=MATRIX_ID, payload=weights)
+            tripit_matrix.put()
+            logging.info('Updated datastore entries with matrix and airport information')
         else:
-            logging.error('Ignoring cache entries update for no containing information, check for errors')
+            logging.error('Ignoring datastore update due to missing information, check log for errors')
 
 
 
