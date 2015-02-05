@@ -46,7 +46,7 @@ class WebAuthCredential:
 
     def getPassword(self):
         return self._password
-    
+
     def authorize(self, request, args):
         pair = "%s:%s" % (self._username, self._password)
         token = base64.b64encode(pair)
@@ -57,7 +57,7 @@ class WebAuthCredential:
 class OAuthConsumerCredential:
     OAUTH_SIGNATURE_METHOD = 'HMAC-SHA1'
     OAUTH_VERSION = '1.0'
-    
+
     # You can construct 3 kinds of OAuth credentials:
     # 1. A credential with no token (to get a request token):
     #    OAuthConsumerCredential('consumer_key', 'consumer_secret')
@@ -72,8 +72,8 @@ class OAuthConsumerCredential:
                  oauth_token='', oauth_token_secret='', oauth_requestor_id=''):
         self._oauth_consumer_key     = oauth_consumer_key
         self._oauth_consumer_secret  = oauth_consumer_secret
-        
-        self._oauth_oauth_token = self._oauth_token_secret = self._oauth_requestor_id = '' 
+
+        self._oauth_oauth_token = self._oauth_token_secret = self._oauth_requestor_id = ''
         if oauth_token != '' and oauth_token_secret != '':
             self._oauth_oauth_token      = oauth_token
             self._oauth_token_secret     = oauth_token_secret
@@ -81,12 +81,12 @@ class OAuthConsumerCredential:
             self._oauth_requestor_id = oauth_token
         elif oauth_requestor_id != '':
             self._oauth_requestor_id = oauth_requestor_id
-        
+
     def authorize(self, request, args):
         request.add_header('Authorization',
             self._generate_authorization_header(
                 request, args))
-    
+
     def validateSignature(self, url):
         base_url, query = url.split("?", 1)
         params = {}
@@ -94,14 +94,14 @@ class OAuthConsumerCredential:
             name, value = param_string.split("=", 1)
             params[urllib.unquote(name)] = urllib.unquote(value)
         map(parse_param, query.split("&"))
-        
+
         signature = params.get('oauth_signature')
-        
+
         return signature == self._generate_signature('GET', base_url, params)
 
     def getOAuthConsumerKey(self):
         return self._oauth_consumer_key
-    
+
     def getOAuthConsumerSecret(self):
         return self._oauth_consumer_secret
 
@@ -110,16 +110,16 @@ class OAuthConsumerCredential:
 
     def getOAuthTokenSecret(self):
         return self._oauth_token_secret
-    
+
     def getOAuthRequestorId(self):
         return self._oauth_requestor_id
-    
+
     def getSessionParameters(self, redirect_url, action):
         params = self._generate_oauth_parameters('GET', action, {'redirect_url':redirect_url})
         params['redirect_url'] = redirect_url
         params['action'] = action
         return json.dumps(params)
-    
+
     def _generate_authorization_header(self, request, args):
         realm = request.get_type() + '://' + request.get_host()
         http_method = request.get_method().upper()
@@ -143,7 +143,7 @@ class OAuthConsumerCredential:
         if self._oauth_oauth_token != '':
             oauth_parameters['oauth_token'] = \
                 self._oauth_oauth_token
-        
+
         if self._oauth_requestor_id != '':
             oauth_parameters['xoauth_requestor_id'] = \
                 self._oauth_requestor_id
@@ -153,14 +153,14 @@ class OAuthConsumerCredential:
             oauth_parameters_for_base_string.update(args)
 
         oauth_parameters['oauth_signature'] = self._generate_signature(http_method, http_url, oauth_parameters_for_base_string)
-        
+
         return oauth_parameters
-    
+
     def _generate_signature(self, method, base_url, params):
         base_url = _escape(base_url)
-        
+
         params.pop('oauth_signature', None)
-        
+
         parameters = _escape(
             '&'.join(
                 ['%s=%s' % \
@@ -168,16 +168,16 @@ class OAuthConsumerCredential:
                  for k in sorted(params)]))
 
         signature_base_string = '&'.join([method, base_url, parameters])
-        
+
         key = self._oauth_consumer_secret + '&' + self._oauth_token_secret
-        
+
         try:
             import hashlib
             hashed = hmac.new(key, signature_base_string, hashlib.sha1)
         except ImportError:
             import sha
             hashed = hmac.new(key, signature_base_string, sha)
-    
+
         return base64.b64encode(hashed.digest())
 
 # } class:OAuthConsumerCredential
@@ -223,7 +223,7 @@ class ResponseHandler(xml.sax.handler.ContentHandler):
                         self._current_content, '%H:%M:%S')[3:6]))
 
             self._element_stack[-1].set_attribute(name, self._current_content)
-            
+
             self._current_content = None
 
         if re.match('[A-Z]', name):
@@ -275,7 +275,7 @@ class TravelObj(type):
             return cmp(cls_start_datetime_obj, other_start_datetime_obj)
         except Exception:
             pass
-    
+
     def set_attribute(self, name, value):
         self._attributes[name] = value
 
@@ -359,7 +359,7 @@ class TripIt(object):
             request = urllib2.Request(url, urllib.urlencode(post_args))
         else:
             request = urllib2.Request(url)
-            
+
         self._credential.authorize(request, args)
 
         stream = None
@@ -469,7 +469,7 @@ class TripIt(object):
 
     def delete_directions(self, id):
         return self._parse_command({ 'id' : id })
-    
+
     def replace_trip(self, id, xml):
         return self._parse_command({ 'id' : id, 'xml' : xml })
 
@@ -517,13 +517,13 @@ class TripIt(object):
 
     def create(self, xml):
         return self._parse_command(None, { 'xml' : xml })
-    
+
     def crs_load_reservations(self, xml, company_key=None):
         args = {'xml' : xml}
         if company_key is not None:
             args['company_key'] = company_key
         return self._parse_command(None, args, 'crsLoadReservations')
-    
+
     def crs_delete_reservations(self, record_locator):
         return self._parse_command({'record_locator' : record_locator}, None, 'crsDeleteReservations')
 
