@@ -1,6 +1,5 @@
 from tripit import TripIt, WebAuthCredential
 
-
 class TripItFacade(object):
 
 
@@ -42,6 +41,21 @@ class TripItFacade(object):
                     item = {}
                     for attribute in s.get_attribute_names():
                         item[attribute] = s.get_attribute_value(attribute)
+
+                    # hack to parse the date from crappy TripIt API
+                    children = s.get_children()
+                    if children and isinstance(children, list):
+                        for child_node in children:
+                            if child_node and child_node.__name__ == 'StartDateTime':
+                                item['start_date_time'] = '{} {}'.format(
+                                    child_node.get_attribute_value('date'),
+                                    child_node.get_attribute_value('time')
+                                )
+                            elif child_node and child_node.__name__ == 'EndDateTime':
+                                item['end_date_time'] = '{} {}'.format(
+                                    child_node.get_attribute_value('date'),
+                                    child_node.get_attribute_value('time')
+                                )
                     ret.append(item)
             if page_num < max_page:
                 page_num += 1
