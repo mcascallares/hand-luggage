@@ -66,6 +66,16 @@ class AirportMatrixHandler(webapp2.RequestHandler):
         self.response.write(json.encode(matrix.payload))
 
 
+class RawHandler(webapp2.RequestHandler):
+
+    def get(self):
+        tripit = TripItFacade(config.TRIPIT_USERNAME, config.TRIPIT_PASSWORD)
+        flight_segments = tripit.list_flight_segments()
+        if len(flight_segments) > 0:
+            self.response.content_type = 'application/json'
+            self.response.write(json.encode(flight_segments))
+
+
 class TripItHandler(webapp2.RequestHandler):
 
     def get(self):
@@ -110,5 +120,6 @@ app = webapp2.WSGIApplication([
     ('/airports/matrix.json', AirportMatrixHandler),
     ('/airports/list.csv', AirportListHandler),
     ('/tripit/schedule', TripItHandler),
-    ('/tripit/worker', TripItHandler)
+    ('/tripit/worker', TripItHandler),
+    ('/tripit/raw', RawHandler)
 ], debug=True)
